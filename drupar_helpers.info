@@ -1,0 +1,7 @@
+name = Helpers
+description = Define funciones helpers
+package = Drupar
+core = 7.x
+version = 7.x-3.0
+
+files[] = src/ImageHelper.php

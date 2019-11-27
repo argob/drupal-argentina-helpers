@@ -1,0 +1,567 @@
+<?php
+
+function esNodo()
+{
+    return arg(0) == 'node' && is_numeric(arg(1));
+}
+function esRevisionDeNodo()
+{
+    return esNodo() && arg(2) == 'revisions' && is_numeric(arg(3));
+}
+function esArea()
+{
+    return (esNodo() && es('area', node_load(arg(1))));
+}
+function esTramite()
+{
+    return (esNodo() && es('tramite', node_load(arg(1))));
+}
+function esServicio()
+{
+    return esTramite();
+}
+function esNoticia()
+{
+    return (esNodo() && es('noticia', node_load(arg(1))));
+}
+function es($tipo, $nodo)
+{
+    return ($nodo->type == $tipo);
+}
+function esPaginaRelacionadaDeNodo()
+{
+    return arg(0) == 'node' && is_numeric(arg(1)) && arg(2) != '';
+}
+
+function obtenerCampo($nodo, $tipo_campo)
+{
+    switch ($tipo_campo) {
+    case 'costo':
+      $campo = field_get_items('node', $nodo, 'field_tramite_costo', null);
+      $campo = isset($campo) && !empty($campo) ? $campo[0]['safe_value'] : null;
+      break;
+    case 'audio':
+      $campo = field_get_items('node', $nodo, 'field_audio', null);
+      $campo = isset($campo) && !empty($campo) ? file_create_url($campo[0]['uri']) : null;
+      break;
+    case 'requisitos':
+      $campo = field_get_items('node', $nodo, 'field_requisitos', null);
+      $campo = isset($campo) && !empty($campo) ? $campo[0]['safe_value'] : null;
+      break;
+      case 'creditos':
+      $campo = field_get_items('node', $nodo, 'field_creditos', null);
+      $campo = isset($campo) && !empty($campo) ? $campo[0]['safe_value'] : null;
+      break;
+    case 'siglas_area':
+      $campo = field_get_items('node', $nodo, 'field_siglas', null);
+      $campo = isset($campo) && !empty($campo) ? $campo[0]['safe_value'] : null;
+      break;
+    case 'links_relacionados':
+      $campo = field_get_items('node', $nodo, 'field_links_relacionados', null);
+      $campo = isset($campo) && !empty($campo) ? obtener($tipo_campo, $campo) : '';
+      break;
+    case 'paginas_relacionadas':
+      $campo = field_get_items('node', $nodo, 'field_paginas_relacionadas', null);
+      $campo = isset($campo) && !empty($campo) ? obtener($tipo_campo, $campo) : '';
+      break;
+    case 'tipo_tramite':
+      $campo = field_get_items('node', $nodo, 'field_tramite_tipo', null);
+      $campo = isset($campo) ? taxonomy_term_load($campo[0]["target_id"]) : null;
+      $campo = isset($campo) ? $campo->name : null;
+      break;
+    case 'categoria_noticia':
+      $campo = field_get_items('node', $nodo, 'field_categoria', null);
+      $campo = isset($campo) ? taxonomy_term_load($campo[0]["target_id"]) : null;
+      $campo = isset($campo) ? $campo->name : null;
+      break;
+    case 'tags':
+      $campo = field_get_items('node', $nodo, 'field_tags', null);
+      $campo = isset($campo) && !empty($campo) ? obtener($tipo_campo, $campo) : null;
+      break;
+      case 'download':
+      $campo = field_get_items('node', $nodo, 'field_download', null);
+      $campo = isset($campo) && !empty($campo) ? obtener($tipo_campo, $campo) : null;
+      break;
+      case 'store':
+      $campo['android'] = field_get_items('node', $nodo, 'field_link_android', null);
+      $campo['iphone'] = field_get_items('node', $nodo, 'field_link_iphone', null);
+      $campo['windows'] = field_get_items('node', $nodo, 'field_link_windows', null);
+      $campo['blackberry'] = field_get_items('node', $nodo, 'field_link_blackberry', null);
+      $campo = isset($campo) && !empty($campo) ? obtener($tipo_campo, $campo) : null;
+      break;
+    default:
+      # code...
+      break;
+  }
+    return $campo;
+}
+
+function obtener($nombreCampo, $campo)
+{
+    $items = array();
+    switch ($nombreCampo) {
+    case 'tags':
+      foreach ($campo as $item) {
+          $items[] = $item['taxonomy_term']->name;
+      }
+      break;
+    case 'paginas_relacionadas':
+      foreach ($campo as $item) {
+          $items[] = $item;
+      }
+      break;
+    case 'links_relacionados':
+      foreach ($campo as $item) {
+          $items[] = $item;
+      }
+      break;
+      case 'download':
+      foreach ($campo as $item) {
+          $items[] = $item;
+      }
+      break;
+      case 'store':
+      foreach ($campo as $key => $item) {
+          if ($item <> null) {
+              $items[$key] = $item;
+          }
+      }
+      break;
+    default:
+      # code...
+      break;
+  }
+    return $items;
+}
+
+function traducir_true_false($boolean)
+{
+    return $boolean ? t("si") : t("no");
+}
+
+function crearBoton($conf)
+{
+    $parts = explode('/', $_SERVER['REQUEST_URI']); 
+    
+    for($i=0; $i < sizeof($parts); $i++){
+        if($parts[$i] != 'argentina.gob.ar'){
+           $last_node .= $parts[$i].'/';
+        }
+    }
+    $last_node = implode("/", array_filter(explode("/", $last_node)));   
+    
+    if(empty($last_node)){
+        $last_node = $parts[sizeof($parts)-2];
+    }
+    
+    $parts = explode('/', obtenerLinkVerTodos($conf)); 
+    $last_conf = end($parts); 
+    
+    $LinkVerTodos = $last_node.'/'.$last_conf;
+    
+    return l(
+        'Ver todos',
+            $LinkVerTodos,
+        //obtenerLinkVerTodos($conf),
+        array(
+            'query' => array(
+                //'nodo' => arg(1)
+            ),
+            'attributes' => array(
+                'class' => array(
+                    'btn',
+                    'btn-primary'
+                )
+            )
+        )
+    );
+}
+
+function obtenerLinkVerTodos($conf)
+{
+    return esRelacionadosDeArea($conf) ? obtenerLinkListadoRelacionado($conf) : obtenerLinkListadoGeneral($conf);
+}
+
+function obtenerLinkListadoRelacionado($conf)
+{
+    return "node/" . arg(1) . "/" . plural($conf["tipos_de_contenido"]);
+}
+
+function obtenerLinkListadoGeneral($conf)
+{
+    return "/" . plural($conf["tipos_de_contenido"]);
+}
+
+function plural($texto)
+{
+    switch ($texto) {
+    case 'noticia':
+      $val = 'noticias';
+      break;
+    case 'servicio':
+      $val = 'servicios';
+      break;
+    case 'area':
+      $val = 'areas';
+      break;
+    default:
+      $val = $texto . 's';
+      break;
+  }
+    return $val;
+}
+
+function esRelacionadosDeArea($conf)
+{
+    return (esArea() && $conf['tipo_de_listado'] == 'relacionados');
+}
+
+function obtenerResumen($node)
+{
+    $body = field_get_items('node', $node, 'body');
+    return $body[0]['summary'];
+}
+
+function obtenerImagen($node)
+{
+    $imagen = field_get_items('node', $node, 'field_featured_image', null);
+    return ($imagen) ? image_style_url('listado', $imagen[0]["uri"]) : null;
+}
+
+function obtenerTaxonomia($item, $tipo)
+{
+    return $tipo == 'tramite' ? field_get_items('node', $item->_field_data["nid"]["entity"], 'field_tramite_tipo', null) : field_get_items('node', $item->_field_data["nid"]["entity"], 'field_categoria', null);
+}
+
+function obtenerTaxonomyVocabularies()
+{
+    foreach (taxonomy_get_vocabularies() as $key => $value) {
+        $vocabularies[$value->vid] = $value->name;
+    }
+    return $vocabularies;
+}
+
+function procesarBody($body, $conf)
+{
+    $esFullHtml = $conf['texto']['format'] == 'full_html';
+    $body = $conf['cuerpo_o_resumen'] == 'body' ? $body[0]['safe_value'] : resumen($body);
+    $body = $esFullHtml ? $body : check_markup($body, $conf['texto']['format']);
+    return $body;
+}
+
+function limpiar_javascript($html)
+{
+    $javascript = '/<script[^>]*?>.*?<\/script>/si';
+    $html = preg_replace($javascript, '“”', $html);
+    $javascript = '/<script[^>]*?javascript{1}[^>]*?>.*?<\/script>/si';
+    $html = preg_replace($javascript, '“”', $html);
+    return $html;
+}
+
+function limpiar_espacios($texto)
+{
+    $texto = preg_replace('[\s\s+]', '', $texto);
+    return $texto;
+}
+
+function resumen($campos)
+{
+    return empty($campos[0]['safe_summary']) ? views_trim_text(array('max_length' => 200, 'ellipsis' => true, 'word_boundary' => true,'html' => true), $campos[0]['safe_value']) : $campos[0]['safe_summary'];
+}
+
+/**
+ * funcion para agregar html meta ej: <meta name="gtm-id" content="234">
+ * params: array($name, $content)
+ */
+function add_meta_html_head($atributes)
+{
+    $meta = array(
+    '#tag'        => 'meta',
+    '#attributes' => $atributes
+  );
+
+    drupal_add_html_head($meta, $atributes['name']);
+}
+
+/**
+ * funcion para obtener el node de un grupo
+ */
+function loadObtenerGrupo($nodo)
+{
+    return node_load(obtenerGrupo($nodo));
+}
+
+/**
+ * funcion para obtener el nodo
+ */
+function obtenerNodo()
+{
+    return node_load(arg(1));
+}
+
+function getNodeWrapper()
+{
+    return entity_metadata_wrapper('node', arg(1));
+}
+
+function obtenerTCA($node)
+{
+    $tca = false;
+    $puedeTenerTCA = is_object($node) && property_exists($node, 'tca_active') && property_exists($node, 'tca_token');
+
+    if ($puedeTenerTCA) {
+        $tca = $node->tca_active == 1 && user_access('administer tca_node') ? $node->tca_token : false;
+    };
+
+    return $tca;
+}
+
+function crear_arbol($link)
+{
+    $link_path = explode("/", $link['item']['link_path']);
+
+    $node = node_load($link_path[1]);
+
+    $tokenContentAccess = obtenerTCA($node);
+
+    $linkUrl = $tokenContentAccess ? l($node->title, 'node/' . $node->nid, array('query' => array('tca' => $node->tca_token))) : l($node->title, 'node/' . $node->nid);
+
+    $active =  drupal_get_path_alias(current_path()) == drupal_get_path_alias($link['item']['link_path']) ? "active" : "";
+
+    if (($node->tca_active && user_access('administer tca_node')) || !$node->tca_active) {
+        $rama = "<li class='" . $active . "'>";
+        $rama .= $linkUrl;
+
+        if ($link['item']['has_children']) {
+            $rama .= "<ul>";
+            foreach ($link['children'] as $key => $child) {
+                $rama .= crear_arbol($child);
+            }
+            $rama .= "</ul>";
+        }
+    }
+
+    return $rama;
+}
+
+function crearBosque(&$book_links, $padre = null)
+{
+    $test = array();
+
+    foreach ($book_links as $key => $link) {
+        $test[$link['mlid']]['item'] = $link;
+
+        unset($book_links[$key]);
+
+        if ($link['has_children']) {
+            $test[$link['mlid']]['children'] = buscar_hijos($book_links, $link);
+        }
+    }
+
+    return $test;
+}
+
+function buscar_hijos(&$book_links, $padre)
+{
+    $children = array();
+
+    foreach ($book_links as $key => $link) {
+        if ($link['plid'] == $padre['mlid']) {
+            $children[$link['mlid']]['item'] = $link;
+
+            // unset($book_links[$key]);
+
+            if ($link['has_children']) {
+                $children[$link['mlid']]['children'] = buscar_hijos($book_links, $link);
+            }
+        }
+    }
+
+    return $children;
+}
+
+/**
+ * Le pasamos una url, y nos devuelve el objeto Nodo coorrespondiente a esa url
+ * url example: "node/9054"
+ */
+function nodeFromUrl($url)
+{
+    $nid = explode("/", $url);
+    $node = node_load($nid[1]);
+
+    return $node;
+}
+
+/**
+ * Obtengo del field->value() del filed, dentro de un node.
+ */
+function getFieldNodeWrapper($node, $field)
+{
+    $node_wrapper = entity_metadata_wrapper('node', $node);
+    return $node_wrapper->$field->value();
+}
+
+/**
+ * Obtengo el Value del Item de lObjeto Fields en cuestion.
+ */
+
+function getValueItemWrapper($fields, $item)
+{
+    if (count($fields->$item) == 0) {
+        return null;
+    }
+
+    return $fields->$item['und'][0]['value'];
+}
+
+function getUriImageWrapper($field)
+{
+    if (count($field) == 0) {
+        return null;
+    }
+
+    return $field[0]['uri'];
+}
+
+/**
+ * Devuelve el Nombre de la provincia a partir del numero de key
+ */
+function getProvincia($key)
+{
+    $key = is_null($key) ? 25 : $key;
+
+    $provincias = array(
+    0 => 'Buenos Aires',
+    1 => 'Ciudad Autónoma de Buenos Aires',
+    2 => 'Catamarca',
+    3 => 'Chaco',
+    4 => 'Chubut',
+    5 => 'Córdoba',
+    6 => 'Corrientes',
+    7 => 'Entre Ríos',
+    8 => 'Formosa',
+    9 => 'Jujuy',
+    10 => 'La Pampa',
+    11 => 'La Rioja',
+    12 => 'Mendoza',
+    13 => 'Misiones',
+    14 => 'Neuquén',
+    15 => 'Río Negro',
+    16 => 'Salta',
+    17 => 'San Juan',
+    18 => 'San Luis',
+    19 => 'Santa Cruz',
+    20 => 'Santa Fe',
+    21 => 'Santiago del Estero',
+    22 => 'Tierra del Fuego, Antártida e Islas del Atlántico Sur',
+    23 => 'Tucumán',
+  );
+
+    return ($key < 0 || $key > 23) ? null : $provincias[$key];
+}
+
+/**
+ * Devuelve el Nombre de la provincia a partir del numero de key
+ */
+function getTipoInmueble($key)
+{
+    $key = is_null($key) ? 10 : $key;
+
+    $tipoInmueble = array(
+    0 => 'Edificios',
+    1 => 'Grandes Fracciones',
+    2 => 'Campos',
+    3 => 'Lotes',
+    4 => 'Galpones',
+    5 => 'Locales',
+    6 => 'Oficinas',
+    7 => 'Viviendas'
+  );
+
+    return ($key < 0 || $key > 7) ? null : $tipoInmueble[$key];
+}
+
+/**
+** function que sirve para validar que una propiedad existe dentro de un objeto, TRUE / FALSE
+** @param $propiedad = string
+*/
+function propertyExists($objeto, $propiedad)
+{
+    return (is_object($objeto) && property_exists($objeto, $propiedad));
+}
+
+/**
+ ** funcion para logear mas rapido y con espacios.
+ **
+ - WATCHDOG_EMERGENCY: Emergency, system is unusable.
+ *   - WATCHDOG_ALERT: Alert, action must be taken immediately.
+ *   - WATCHDOG_CRITICAL: Critical conditions.
+ *   - WATCHDOG_ERROR: Error conditions.
+ *   - WATCHDOG_WARNING: Warning conditions.
+ *   - WATCHDOG_NOTICE: (default) Normal but significant conditions.
+ *   - WATCHDOG_INFO: Informational messages.
+ *   - WATCHDOG_DEBUG: Debug-level messages.
+*/
+function logar($mensaje, $tipo = 'php', $severity = WATCHDOG_NOTICE)
+{
+    watchdog($tipo, '<pre>'. print_r($mensaje, true) .'</pre>', $variables = array(), $severity, $link = null);
+}
+
+
+/*
+  function writeLog($tipo, $mensaje, $ubicacion, $nombreArchivo){
+
+    $pathLogs = realpath('./profiles/argentinagobar/modules/argentinagobar/argentinagobar_migtram/data/logs/');
+    $arch = fopen($pathLogs."/migrtram_log_PASO_2_FIX_".date("Y-m-d").".txt", "a+");
+
+    fwrite($arch, date("Y-m-d H:i:s")." - $tipo - ".$mensaje."\n");
+    fclose($arch);
+  }
+*/
+
+
+/**
+ ** funcion para validar un rango de enteros,
+    ejemplo, rango desde y hasta de FIX Texto Servicio (Migracion de tramite)
+ **
+*/
+function validarRango($dato, $inicio, $fin)
+{
+    return $dato >= $inicio && $dato <= $fin;
+}
+
+
+function ocultarSeleccionFormatoTexto($element)
+{
+    if (isset($element['format'])) {
+        $element['format']['#access'] = false;
+    }
+
+    return $element;
+}
+
+function human_filesize($bytes, $decimals = 1)
+{
+    $size = array('B','Kb','Mb','Gb','Tb');
+    $factor = floor((strlen($bytes) - 1) / 3);
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . ' ' . @$size[$factor];
+}
+
+function translateActions($id)
+{
+    $actions = array(
+        'descargar_documento' => 'Descargar Documento',
+        'web_del_tramite' => 'Web del Tramite',
+        'completar_formulario' => 'Completar formulario',
+        'consultar_en_linea' => 'Consultar en línea',
+        'iniciar_tramite' => 'Iniciar trámite',
+        'iniciar_tramite_en_tad' => 'Iniciar trámite en TAD',
+        'pedir_turno' => 'Pedir turno',
+        'pedir_turno_argentinos_residentes' => 'Pedir turno argentinos y residentes',
+        'pedir_turno_extranjeros' => 'Pedir turno extranjeros',
+        'pedir_turno_para_argentinos_de_13_años_o_mas' => 'Pedir turno para argentinos de 13 años o más',
+        'pedir_turno_para_agentinos_menores_de_13_años' => 'Pedir turno para argentinos menores de 13 años',
+    );
+
+    return $actions[$id];
+}
